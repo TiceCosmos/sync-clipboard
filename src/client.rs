@@ -42,15 +42,12 @@ impl Client {
         let mut recv_buf = [0; BUF_LEN * 2];
         let mut recv_len = 0;
         loop {
-            if let Ok(data) = clipboard.get_contents() {
-                let curr_hash = calculate_hash(&data);
-                if last_hash != curr_hash {
-                    if let Some(n) = encode(&mut send_buf, data) {
-                        stream.write_all(&send_buf[0..n])?;
-                    }
-                    last_hash = curr_hash;
+            clipboard_check(clipboard, &mut last_hash, |data: String| {
+                if let Some(n) = encode(&mut send_buf, data) {
+                    stream.write_all(&send_buf[0..n])?;
                 }
-            }
+                Ok(())
+            })?;
             recv_len = stream_recv(stream, &mut recv_buf, recv_len, |data: String| {
                 last_hash = calculate_hash(&data);
                 clipboard.set_contents(data).ok();

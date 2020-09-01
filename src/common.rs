@@ -1,3 +1,4 @@
+use copypasta::{ClipboardContext, ClipboardProvider};
 use log::info;
 use std::array::TryFromSliceError;
 use std::collections::hash_map::DefaultHasher;
@@ -9,6 +10,12 @@ use std::net::TcpStream;
 
 pub const WAIT_MS: u64 = 1000;
 pub const BUF_LEN: usize = 10240;
+
+pub fn calculate_hash<T: Hash>(t: &T) -> u64 {
+    let mut s = DefaultHasher::new();
+    t.hash(&mut s);
+    s.finish()
+}
 
 pub fn encode(buf: &mut [u8], s: String) -> Option<usize> {
     let data = s.into_bytes();
@@ -57,12 +64,6 @@ pub fn decode(buf: &mut [u8]) -> Result<(usize, Option<String>), TryFromSliceErr
     Ok((len - s, cont))
 }
 
-pub fn calculate_hash<T: Hash>(t: &T) -> u64 {
-    let mut s = DefaultHasher::new();
-    t.hash(&mut s);
-    s.finish()
-}
-
 pub fn stream_recv<F>(
     stream: &mut TcpStream,
     buffer: &mut [u8],
@@ -85,4 +86,24 @@ where
         }
     }
     Ok(start)
+}
+
+pub fn clipboard_check<F>(
+    clipboard: &mut ClipboardContext,
+    last_hash: &mut u64,
+    mut func: F,
+) -> Result<(), Box<dyn Error>>
+where
+    F: FnMut(String) -> Result<(), Box<dyn Error>>,
+{
+    let data = clipboard.get_contents()?;
+    let curr_hash = calculate_hash(&data);
+    if data.starts_with("x-special/") {
+        *last_hash = curr_hash;
+    }
+    if last_hash != &curr_hash {
+        func(data)?;
+        *last_hash = curr_hash;
+    }
+    Ok(())
 }

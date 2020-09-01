@@ -24,7 +24,11 @@ impl Server {
         let (send_l, recv_l) = channel::<String>();
         let (send_r, recv_r) = channel::<String>();
         let clipboard = ClipboardContext::new()?;
-        thread::spawn(move || Self::monitor_clipboard(clipboard, send_l, recv_r));
+        thread::spawn(move || {
+            if let Err(e) = Self::monitor_clipboard(clipboard, send_l, recv_r) {
+                warn!("{}", e);
+            }
+        });
         Ok(Server {
             listener,
             get_l_to_send: Arc::new(Mutex::new(recv_l)),
@@ -59,23 +63,19 @@ impl Server {
         mut clipboard: ClipboardContext,
         get_l_to_send: Sender<String>,   // local clipboard context
         recv_r_to_set: Receiver<String>, // remote clipboard context
-    ) {
+    ) -> Result<(), Box<dyn Error>> {
         let wait_time = time::Duration::from_millis(WAIT_MS);
 
         let mut last_hash = calculate_hash(&String::new());
 
-        'outer: while let Ok(data) = clipboard.get_contents() {
-            let curr_hash = calculate_hash(&data);
-            if last_hash != curr_hash {
+        loop {
+            clipboard_check(&mut clipboard, &mut last_hash, |data: String| {
                 let len = LINK_COUNT.load(Ordering::Relaxed);
                 for _ in 0..len {
-                    if let Err(e) = get_l_to_send.send(data.clone()) {
-                        warn!("{}", e);
-                        break 'outer;
-                    }
+                    get_l_to_send.send(data.clone())?;
                 }
-                last_hash = curr_hash;
-            }
+                Ok(())
+            })?;
             if let Ok(data) = recv_r_to_set.recv_timeout(wait_time) {
                 last_hash = calculate_hash(&data);
                 clipboard.set_contents(data).ok();
