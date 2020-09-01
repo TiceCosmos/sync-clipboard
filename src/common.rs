@@ -1,26 +1,14 @@
-use chrono::Local;
-use env_logger::Builder;
+use log::info;
 use std::array::TryFromSliceError;
 use std::collections::hash_map::DefaultHasher;
 use std::convert::TryInto;
+use std::error::Error;
 use std::hash::{Hash, Hasher};
-use std::io::Write;
+use std::io::prelude::*;
+use std::net::TcpStream;
 
-pub const WAIT_MS: u64 = 200;
-
-pub fn env_logger_init() {
-    Builder::from_default_env()
-        .format(|buf, record| {
-            writeln!(
-                buf,
-                "{} [{}] - {}",
-                Local::now().format("%FT%T"),
-                buf.default_styled_level(record.level()),
-                record.args()
-            )
-        })
-        .init();
-}
+pub const WAIT_MS: u64 = 1000;
+pub const BUF_LEN: usize = 10240;
 
 pub fn encode(buf: &mut [u8], s: String) -> Option<usize> {
     let data = s.into_bytes();
@@ -73,4 +61,28 @@ pub fn calculate_hash<T: Hash>(t: &T) -> u64 {
     let mut s = DefaultHasher::new();
     t.hash(&mut s);
     s.finish()
+}
+
+pub fn stream_recv<F>(
+    stream: &mut TcpStream,
+    buffer: &mut [u8],
+    start: usize,
+    mut func: F,
+) -> Result<usize, Box<dyn Error>>
+where
+    F: FnMut(String) -> Result<(), Box<dyn Error>>,
+{
+    if let Ok(new_len) = stream.read(&mut buffer[start..]) {
+        if new_len > 0 {
+            info!("收到数据长度: {}", new_len);
+            match decode(&mut buffer[..(start + new_len)])? {
+                (len, Some(data)) => {
+                    func(data)?;
+                    return Ok(len);
+                }
+                (len, None) => return Ok(len),
+            }
+        }
+    }
+    Ok(start)
 }
