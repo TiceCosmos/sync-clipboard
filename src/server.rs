@@ -77,7 +77,6 @@ impl Server {
                 Ok(())
             })?;
             if let Ok(data) = recv_r_to_set.recv_timeout(wait_time) {
-                last_hash = calculate_hash(&data);
                 clipboard.set_contents(data).ok();
             }
             thread::sleep(wait_time);
@@ -95,17 +94,22 @@ impl Server {
         let mut send_buf = [0xff; BUF_LEN];
         let mut recv_buf = [0; BUF_LEN * 2];
         let mut recv_len = 0;
+        let mut last_hash = calculate_hash(&String::new());
+
         loop {
             if let Ok(data) = if let Ok(recv) = get_l_to_send.lock() {
                 recv.recv_timeout(wait_time)
             } else {
                 break;
             } {
-                if let Some(n) = encode(&mut send_buf, data) {
-                    stream.write_all(&send_buf[0..n])?;
+                if last_hash != calculate_hash(&data) {
+                    if let Some(n) = encode(&mut send_buf, data) {
+                        stream.write_all(&send_buf[0..n])?;
+                    }
                 }
             }
             recv_len = stream_recv(&mut stream, &mut recv_buf, recv_len, |data: String| {
+                last_hash = calculate_hash(&data);
                 recv_r_to_set.send(data)?;
                 Ok(())
             })?;

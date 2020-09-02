@@ -1,6 +1,6 @@
 [package]
 name = "sync_clipboard"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Tice Cosmos <tice@139.com>"]
 edition = "2018"
 
