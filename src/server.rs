@@ -4,7 +4,7 @@ use copypasta::{ClipboardContext, ClipboardProvider};
 use log::{info, warn};
 use std::error::Error;
 use std::io::prelude::*;
-use std::net::{TcpListener, TcpStream, ToSocketAddrs};
+use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
@@ -19,8 +19,8 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn bind<A: ToSocketAddrs>(addr: A) -> Result<Self, Box<dyn Error>> {
-        let listener = TcpListener::bind(addr)?;
+    pub fn bind<S: AsRef<str>>(addr: S, port: u16) -> Result<Self, Box<dyn Error>> {
+        let listener = TcpListener::bind((addr.as_ref(), port))?;
         let (send_l, recv_l) = channel::<String>();
         let (send_r, recv_r) = channel::<String>();
         let clipboard = ClipboardContext::new()?;

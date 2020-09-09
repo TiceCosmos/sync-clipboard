@@ -42,9 +42,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("{:#?}", opt);
 
     if opt.serv {
-        Server::bind((opt.addr, opt.port))?.cycle();
+        Server::bind(opt.addr, opt.port)?.cycle();
     } else {
-        Client::bind((opt.addr, opt.port))?.cycle();
+        Client::bind(opt.addr, opt.port)?.cycle();
     }
 
     Ok(())
