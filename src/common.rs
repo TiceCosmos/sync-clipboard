@@ -1,12 +1,14 @@
 use copypasta::{ClipboardContext, ClipboardProvider};
 use log::info;
-use std::array::TryFromSliceError;
-use std::collections::hash_map::DefaultHasher;
-use std::convert::TryInto;
-use std::error::Error;
-use std::hash::{Hash, Hasher};
-use std::io::prelude::*;
-use std::net::TcpStream;
+use std::{
+    array::TryFromSliceError,
+    collections::hash_map::DefaultHasher,
+    convert::TryInto,
+    error::Error,
+    hash::{Hash, Hasher},
+    io::prelude::*,
+    net::TcpStream,
+};
 
 pub const WAIT_MS: u64 = 1000;
 pub const BUF_LEN: usize = 10240;

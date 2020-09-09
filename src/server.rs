@@ -2,13 +2,17 @@ use crate::common::*;
 
 use copypasta::{ClipboardContext, ClipboardProvider};
 use log::{info, warn};
-use std::error::Error;
-use std::io::prelude::*;
-use std::net::{TcpListener, TcpStream};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::{Arc, Mutex};
-use std::{thread, time};
+use std::{
+    error::Error,
+    io::prelude::*,
+    net::{TcpListener, TcpStream},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        mpsc::{channel, Receiver, Sender},
+        Arc, Mutex,
+    },
+    {thread, time::Duration},
+};
 
 static LINK_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -21,8 +25,8 @@ pub struct Server {
 impl Server {
     pub fn bind<S: AsRef<str>>(addr: S, port: u16) -> Result<Self, Box<dyn Error>> {
         let listener = TcpListener::bind((addr.as_ref(), port))?;
-        let (send_l, recv_l) = channel::<String>();
-        let (send_r, recv_r) = channel::<String>();
+        let (send_l, recv_l) = channel();
+        let (send_r, recv_r) = channel();
         let clipboard = ClipboardContext::new()?;
         thread::spawn(move || {
             if let Err(e) = Self::monitor_clipboard(clipboard, send_l, recv_r) {
@@ -64,7 +68,7 @@ impl Server {
         get_l_to_send: Sender<String>,   // local clipboard context
         recv_r_to_set: Receiver<String>, // remote clipboard context
     ) -> Result<(), Box<dyn Error>> {
-        let wait_time = time::Duration::from_millis(WAIT_MS);
+        let wait_time = Duration::from_millis(WAIT_MS);
 
         let mut last_hash = calculate_hash(&String::new());
 
@@ -88,7 +92,7 @@ impl Server {
         get_l_to_send: Arc<Mutex<Receiver<String>>>, // local clipboard context
         recv_r_to_set: Sender<String>,               // remote clipboard context
     ) -> Result<(), Box<dyn Error>> {
-        let wait_time = time::Duration::from_millis(WAIT_MS);
+        let wait_time = Duration::from_millis(WAIT_MS);
         stream.set_read_timeout(Some(wait_time))?;
 
         let mut send_buf = [0xff; BUF_LEN];

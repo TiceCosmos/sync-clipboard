@@ -8,8 +8,7 @@ use server::*;
 use chrono::Local;
 use env_logger::Builder;
 use log::info;
-use std::error::Error;
-use std::io::prelude::*;
+use std::{error::Error, io::prelude::*};
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]

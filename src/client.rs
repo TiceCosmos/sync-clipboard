@@ -2,11 +2,13 @@ use crate::common::*;
 
 use copypasta::{ClipboardContext, ClipboardProvider};
 use log::warn;
-use std::error::Error;
-use std::io::prelude::*;
-use std::net::{SocketAddr, TcpStream};
-use std::thread;
-use std::time::Duration;
+use std::{
+    error::Error,
+    io::prelude::*,
+    net::{IpAddr, SocketAddr, TcpStream},
+    thread,
+    time::Duration,
+};
 
 pub struct Client {
     addr: SocketAddr,
@@ -16,18 +18,21 @@ pub struct Client {
 
 impl Client {
     pub fn bind<S: AsRef<str>>(addr: S, port: u16) -> Result<Self, Box<dyn Error>> {
+        let addr = addr.as_ref().parse::<IpAddr>()?;
         Ok(Client {
-            addr: (addr.as_ref().parse::<std::net::IpAddr>()?, port).into(),
+            addr: (addr, port).into(),
             send: [0xff; BUF_LEN],
             recv: [0; BUF_LEN * 2],
         })
     }
     pub fn cycle(&mut self) {
         let wait_time = Duration::from_millis(WAIT_MS);
+        let reconnect = Duration::from_secs(5);
         loop {
             if let Err(e) = self.remote_synchronize(wait_time) {
                 warn!("{}", e);
             }
+            thread::sleep(reconnect);
         }
     }
     fn remote_synchronize(&mut self, wait_time: Duration) -> Result<(), Box<dyn Error>> {
