@@ -80,6 +80,9 @@ where
             info!("收到数据长度: {}", new_len);
             match decode(&mut buffer[..(start + new_len)])? {
                 (len, Some(data)) => {
+                    if data.starts_with("http://") || data.starts_with("https://") {
+                        webbrowser::open(&data).ok();
+                    }
                     func(data)?;
                     return Ok(len);
                 }

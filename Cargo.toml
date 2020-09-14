@@ -1,6 +1,6 @@
 [package]
 name = "sync_clipboard"
-version = "0.2.4"
+version = "0.2.5"
 authors = ["Tice Cosmos <tice@139.com>"]
 edition = "2018"
 
@@ -12,3 +12,4 @@ copypasta = "0.7"
 env_logger = "0.7"
 log = "0.4"
 structopt = "0.3"
+webbrowser = "0.5"
