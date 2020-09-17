@@ -40,23 +40,23 @@ impl Server {
         })
     }
 
-    pub fn cycle(&self) {
+    pub fn cycle(&self, open_url: bool) {
         for stream in self.listener.incoming() {
             match stream {
                 Ok(stream) => {
                     let l = self.get_l_to_send.clone();
                     let r = self.recv_r_to_set.clone();
-                    thread::spawn(move || {
-                        if let Ok(source) = stream.local_addr() {
+                    if let Ok(source) = stream.local_addr() {
+                        thread::spawn(move || {
                             info!("{:?} linked", source);
                             LINK_COUNT.fetch_add(1, Ordering::Relaxed);
-                            if let Err(e) = Self::remote_synchronize(stream, l, r) {
+                            if let Err(e) = Self::remote_synchronize(stream, l, r, open_url) {
                                 warn!("{}", e);
                             }
                             LINK_COUNT.fetch_sub(1, Ordering::Relaxed);
                             info!("{:?} unlink", source);
-                        }
-                    });
+                        });
+                    }
                 }
                 Err(e) => warn!("{}", e),
             }
@@ -91,6 +91,7 @@ impl Server {
         mut stream: TcpStream,
         get_l_to_send: Arc<Mutex<Receiver<String>>>, // local clipboard context
         recv_r_to_set: Sender<String>,               // remote clipboard context
+        open_url: bool,
     ) -> Result<(), Box<dyn Error>> {
         let wait_time = Duration::from_millis(WAIT_MS);
         stream.set_read_timeout(Some(wait_time))?;
@@ -112,11 +113,17 @@ impl Server {
                     }
                 }
             }
-            recv_len = stream_recv(&mut stream, &mut recv_buf, recv_len, |data: String| {
-                last_hash = calculate_hash(&data);
-                recv_r_to_set.send(data)?;
-                Ok(())
-            })?;
+            recv_len = stream_recv(
+                &mut stream,
+                &mut recv_buf,
+                recv_len,
+                open_url,
+                |data: String| {
+                    last_hash = calculate_hash(&data);
+                    recv_r_to_set.send(data)?;
+                    Ok(())
+                },
+            )?;
             thread::sleep(wait_time);
         }
         Ok(())

@@ -13,6 +13,9 @@ use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
 struct Opt {
+    /// auto open http url
+    #[structopt(short = "o", long = "open")]
+    open: bool,
     /// server addr
     #[structopt(short = "s", long = "server")]
     serv: bool,
@@ -41,9 +44,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("{:#?}", opt);
 
     if opt.serv {
-        Server::bind(opt.addr, opt.port)?.cycle();
+        Server::bind(opt.addr, opt.port)?.cycle(opt.open);
     } else {
-        Client::bind(opt.addr, opt.port)?.cycle();
+        Client::bind(opt.addr, opt.port)?.cycle(opt.open);
     }
 
     Ok(())

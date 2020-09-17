@@ -70,6 +70,7 @@ pub fn stream_recv<F>(
     stream: &mut TcpStream,
     buffer: &mut [u8],
     start: usize,
+    open_url: bool,
     mut func: F,
 ) -> Result<usize, Box<dyn Error>>
 where
@@ -80,7 +81,7 @@ where
             info!("收到数据长度: {}", new_len);
             match decode(&mut buffer[..(start + new_len)])? {
                 (len, Some(data)) => {
-                    if data.starts_with("http://") || data.starts_with("https://") {
+                    if open_url && (data.starts_with("http://") || data.starts_with("https://")) {
                         webbrowser::open(&data).ok();
                     }
                     func(data)?;

@@ -25,17 +25,21 @@ impl Client {
             recv: [0; BUF_LEN * 2],
         })
     }
-    pub fn cycle(&mut self) {
+    pub fn cycle(&mut self, open_url: bool) {
         let wait_time = Duration::from_millis(WAIT_MS);
         let reconnect = Duration::from_secs(5);
         loop {
-            if let Err(e) = self.remote_synchronize(wait_time) {
+            if let Err(e) = self.remote_synchronize(wait_time, open_url) {
                 warn!("{}", e);
             }
             thread::sleep(reconnect);
         }
     }
-    fn remote_synchronize(&mut self, wait_time: Duration) -> Result<(), Box<dyn Error>> {
+    fn remote_synchronize(
+        &mut self,
+        wait_time: Duration,
+        open_url: bool,
+    ) -> Result<(), Box<dyn Error>> {
         let mut stream = TcpStream::connect(self.addr)?;
         stream.set_read_timeout(Some(wait_time))?;
         let mut clipboard = ClipboardContext::new()?;
@@ -50,11 +54,17 @@ impl Client {
                 }
                 Ok(())
             })?;
-            recv_len = stream_recv(&mut stream, &mut self.recv, recv_len, |data: String| {
-                last_hash = calculate_hash(&data);
-                clipboard.set_contents(data).ok();
-                Ok(())
-            })?;
+            recv_len = stream_recv(
+                &mut stream,
+                &mut self.recv,
+                recv_len,
+                open_url,
+                |data: String| {
+                    last_hash = calculate_hash(&data);
+                    clipboard.set_contents(data).ok();
+                    Ok(())
+                },
+            )?;
             thread::sleep(wait_time);
         }
     }
