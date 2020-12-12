@@ -1,0 +1,22 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'sync_clipboard'",
+            "cargo": {
+                "args": ["build", "--bin=sync_clipboard", "--package=sync_clipboard"],
+                "filter": {
+                    "name": "sync_clipboard",
+                    "kind": "bin"
+                }
+            },
+            "args": ["-a", "172.20.186.137"],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

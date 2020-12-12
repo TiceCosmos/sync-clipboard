@@ -28,7 +28,7 @@ pub fn decode(buf: &mut [u8]) -> Result<Option<(usize, String)>, TryFromSliceErr
     let mut data = None;
     if n + 4 <= len {
         data = Some((
-            n + 4,
+            len - (n + 4),
             String::from_utf8_lossy(buf[4..(n + 4)].try_into()?).into_owned(),
         ));
         buf.copy_within((n + 4).., 0);

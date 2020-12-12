@@ -1,6 +1,6 @@
 [package]
 name = "sync_clipboard"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Tice Cosmos <tice@139.com>"]
 edition = "2018"
 description = "check and update theia plugins"
