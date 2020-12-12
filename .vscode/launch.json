@@ -7,15 +7,21 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'sync_clipboard'",
+            "name": "Debug Server",
             "cargo": {
-                "args": ["build", "--bin=sync_clipboard", "--package=sync_clipboard"],
-                "filter": {
-                    "name": "sync_clipboard",
-                    "kind": "bin"
-                }
+                "args": ["build"]
             },
-            "args": ["-a", "172.20.186.137"],
+            "args": ["-s", "-a", "0.0.0.0"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug Client",
+            "cargo": {
+                "args": ["build"]
+            },
+            "args": ["-a", "127.0.0.1"],
             "cwd": "${workspaceFolder}"
         }
     ]
