@@ -1,71 +1,102 @@
-use crate::common::*;
-
-use copypasta::{ClipboardContext, ClipboardProvider};
-use log::warn;
-use std::{
-    error::Error,
-    io::prelude::*,
-    net::{IpAddr, SocketAddr, TcpStream},
-    thread,
-    time::Duration,
+use crate::{Error, PeerMap, Result, BUF_LEN, RECON_S};
+use async_std::{
+    channel::Sender,
+    net::{SocketAddr, TcpStream},
+    prelude::*,
+    task,
 };
+use futures_lite::io::ReadHalf;
+use log::{error, info, warn};
+use std::time::Duration;
 
 pub struct Client {
-    addr: SocketAddr,
-    send: [u8; BUF_LEN],
-    recv: [u8; BUF_LEN * 2],
+    pub addr: SocketAddr,
+    pub maps: PeerMap,
+    schn: Sender<String>,
+    buff: Box<[u8; BUF_LEN * 2]>,
+    auto: bool,
 }
 
 impl Client {
-    pub fn bind<S: AsRef<str>>(addr: S, port: u16) -> Result<Self, Box<dyn Error>> {
-        let addr = addr.as_ref().parse::<IpAddr>()?;
-        Ok(Client {
-            addr: (addr, port).into(),
-            send: [0xff; BUF_LEN],
-            recv: [0; BUF_LEN * 2],
-        })
-    }
-    pub fn cycle(&mut self, open_url: bool) {
-        let wait_time = Duration::from_millis(WAIT_MS);
-        let reconnect = Duration::from_secs(5);
-        loop {
-            if let Err(e) = self.remote_synchronize(wait_time, open_url) {
-                warn!("{}", e);
-            }
-            thread::sleep(reconnect);
+    pub fn new(addr: SocketAddr, schn: Sender<String>, maps: PeerMap) -> Self {
+        Client {
+            addr,
+            schn,
+            maps,
+            buff: Box::new([0; BUF_LEN * 2]),
+            auto: false,
         }
     }
-    fn remote_synchronize(
-        &mut self,
-        wait_time: Duration,
-        open_url: bool,
-    ) -> Result<(), Box<dyn Error>> {
-        let mut stream = TcpStream::connect(self.addr)?;
-        stream.set_read_timeout(Some(wait_time))?;
-        let mut clipboard = ClipboardContext::new()?;
 
-        let mut last_hash = calculate_hash(&String::new());
+    pub fn with_auto(&mut self) -> &mut Self {
+        self.auto = true;
+        self
+    }
 
-        let mut recv_len = 0;
+    pub async fn run(&mut self) {
+        let reconnect = Duration::from_secs(RECON_S);
         loop {
-            clipboard_check(&mut clipboard, &mut last_hash, |data: String| {
-                if let Some(n) = encode(&mut self.send, data) {
-                    stream.write_all(&self.send[0..n])?;
+            let stream = match TcpStream::connect(self.addr).await {
+                Ok(x) => x,
+                Err(e) => {
+                    warn!("Tcp connect error: {}", e);
+                    task::sleep(reconnect).await;
+                    continue;
                 }
-                Ok(())
-            })?;
-            recv_len = stream_recv(
-                &mut stream,
-                &mut self.recv,
-                recv_len,
-                open_url,
-                |data: String| {
-                    last_hash = calculate_hash(&data);
-                    clipboard.set_contents(data).ok();
-                    Ok(())
-                },
-            )?;
-            thread::sleep(wait_time);
+            };
+
+            let (reader, writer) = futures_lite::io::split(stream);
+
+            self.maps.lock().await.insert(self.addr, writer);
+
+            if let Err(e) = self.recv_message(reader).await {
+                match e {
+                    Error::Lnk(e) => {
+                        warn!("IO error: {}", e);
+                    }
+                    Error::Snd(e) => {
+                        error!("Channel error: {}", e);
+                        break;
+                    }
+                    Error::Rcv(e) => {
+                        error!("Channel error: {}", e);
+                        break;
+                    }
+                    Error::Dyn(e) => {
+                        warn!("Clipboard get error: {}", e);
+                    }
+                }
+            }
+
+            self.maps.lock().await.remove(&self.addr);
+        }
+    }
+
+    pub async fn recv_message(&mut self, mut reader: ReadHalf<TcpStream>) -> Result<()> {
+        let mut has_len = 0;
+
+        loop {
+            let new_len = reader.read(&mut self.buff[has_len..]).await?;
+            if new_len == 0 {
+                return Ok(());
+            }
+            info!("收到数据长度: {}", new_len);
+            has_len += new_len;
+            loop {
+                match crate::message::decode(&mut self.buff[..has_len]) {
+                    Ok(Some((len, data))) => {
+                        if self.auto
+                            && (data.starts_with("http://") || data.starts_with("https://"))
+                        {
+                            webbrowser::open(&data).ok();
+                        }
+                        self.schn.send(data).await?;
+                        has_len = len;
+                    }
+                    Ok(None) => break,
+                    Err(_) => break,
+                }
+            }
         }
     }
 }

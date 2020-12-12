@@ -1,15 +1,19 @@
 [package]
 name = "sync_clipboard"
-version = "0.2.6"
+version = "0.3.0"
 authors = ["Tice Cosmos <tice@139.com>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "check and update theia plugins"
+license = "MIT"
+readme = "README.md"
 
 [dependencies]
+async-std = { version = "1.8", features = ["attributes", "unstable"] }
 chrono = "0.4"
 copypasta = "0.7"
-env_logger = "0.7"
-log = "0.4"
+env_logger = "0.8"
 structopt = "0.3"
 webbrowser = "0.5"
+
+futures-lite = "*"
+log = "*"
