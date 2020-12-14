@@ -1,6 +1,6 @@
 [package]
 name = "sync_clipboard"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Tice Cosmos <tice@139.com>"]
 edition = "2018"
 description = "check and update theia plugins"
@@ -12,6 +12,7 @@ async-std = { version = "1.8", features = ["attributes", "unstable"] }
 chrono = "0.4"
 copypasta = "0.7"
 env_logger = "0.8"
+futures = "0.3"
 structopt = "0.3"
 webbrowser = "0.5"
 

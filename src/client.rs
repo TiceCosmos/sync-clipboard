@@ -51,19 +51,12 @@ impl Client {
 
             if let Err(e) = self.recv_message(reader).await {
                 match e {
-                    Error::Lnk(e) => {
-                        warn!("IO error: {}", e);
-                    }
-                    Error::Snd(e) => {
-                        error!("Channel error: {}", e);
+                    Error::Chn(_) => {
+                        error!("{}", e);
                         break;
                     }
-                    Error::Rcv(e) => {
-                        error!("Channel error: {}", e);
-                        break;
-                    }
-                    Error::Dyn(e) => {
-                        warn!("Clipboard get error: {}", e);
+                    _ => {
+                        warn!("{}", e);
                     }
                 }
             }

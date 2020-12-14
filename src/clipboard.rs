@@ -15,7 +15,7 @@ pub struct Clipboard {
 impl Clipboard {
     pub fn new(rchn: Receiver<String>, maps: PeerMap) -> Result<Self, Error> {
         Ok(Self {
-            clip: ClipboardContext::new()?,
+            clip: ClipboardContext::new().map_err(|e| Error::new_clip(e))?,
             rchn,
             maps,
             last: crate::utils::calculate_hash(&String::new()),
@@ -28,21 +28,20 @@ impl Clipboard {
         loop {
             if let Err(e) = self.timeout_toggle(wait_time).await {
                 match e {
-                    Error::Lnk(e) => {
-                        warn!("IO error: {}", e);
-                    }
-                    Error::Snd(e) => {
-                        error!("Channel error: {}", e);
+                    Error::Chn(_) => {
+                        error!("{}", e);
                         break;
                     }
-                    Error::Rcv(e) => {
-                        error!("Channel error: {}", e);
-                        break;
-                    }
-                    Error::Dyn(e) => {
-                        warn!("Clipboard get error: {}", e);
-                    }
+                    Error::Clp(_) => match ClipboardContext::new() {
+                        Ok(clip) => self.clip = clip,
+                        Err(e) => {
+                            error!("Clipboard error: {}", e);
+                            break;
+                        }
+                    },
+                    _ => {}
                 }
+                warn!("{}", e);
             }
         }
     }
@@ -54,19 +53,22 @@ impl Clipboard {
             Ok(x) => {
                 let x = x?;
                 self.last = crate::utils::calculate_hash(&x);
-                self.clip.set_contents(x)?;
+                self.clip.set_contents(x).map_err(|e| Error::new_clip(e))?;
             }
             Err(x) => {
-                let x = x?;
+                let x = x.map_err(|e| Error::new_clip(e))?;
                 if !x.starts_with("x-special/") {
                     let hash = crate::utils::calculate_hash(&x);
                     if self.last != hash {
                         self.last = hash;
                         if let Some(n) = crate::message::encode(self.buff.as_mut(), x) {
                             let message = self.buff[..n].as_ref();
-                            for stream in self.maps.lock().await.values_mut() {
-                                stream.write_all(message).await?;
+                            let mut maps = self.maps.lock().await;
+                            let mut task_list = vec![];
+                            for stream in maps.values_mut() {
+                                task_list.push(stream.write_all(message));
                             }
+                            futures::future::join_all(task_list).await;
                         }
                     }
                 }

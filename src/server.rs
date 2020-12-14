@@ -1,4 +1,4 @@
-use crate::{client::Client, Error, PeerMap};
+use crate::{client::Client, PeerMap};
 use async_std::{
     channel::Sender,
     io,
@@ -6,7 +6,7 @@ use async_std::{
     prelude::*,
     task,
 };
-use log::{error, info, warn};
+use log::{info, warn};
 
 pub struct Server {
     listener: TcpListener,
@@ -52,20 +52,7 @@ impl Server {
                 client.maps.lock().await.insert(addr, writer);
 
                 if let Err(e) = client.recv_message(reader).await {
-                    match e {
-                        Error::Lnk(e) => {
-                            warn!("IO error: {}", e);
-                        }
-                        Error::Snd(e) => {
-                            error!("Channel error: {}", e);
-                        }
-                        Error::Rcv(e) => {
-                            error!("Channel error: {}", e);
-                        }
-                        Error::Dyn(e) => {
-                            warn!("Clipboard get error: {}", e);
-                        }
-                    }
+                    warn!("{}", e);
                 }
 
                 client.maps.lock().await.remove(&addr);

@@ -19,6 +19,7 @@ use futures_lite::io::WriteHalf;
 use log::info;
 use std::{
     collections::HashMap,
+    fmt,
     io::prelude::*,
     net::{IpAddr, SocketAddr},
 };
@@ -93,28 +94,42 @@ async fn main() -> Result<()> {
 
 #[derive(Debug)]
 pub enum Error {
-    Lnk(io::Error),
-    Snd(SendError<String>),
-    Rcv(RecvError),
-    Dyn(Box<dyn std::error::Error>),
+    Tcp(io::Error),
+    Chn(String),
+    Clp(Box<dyn std::error::Error>),
+}
+impl Error {
+    fn new_clip(e: Box<dyn std::error::Error>) -> Self {
+        Self::Clp(e)
+    }
+}
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::Tcp(e) => {
+                write!(f, "TcpStream error: {})", e)
+            }
+            Error::Chn(e) => {
+                write!(f, "Channel error: {})", e)
+            }
+            Error::Clp(e) => {
+                write!(f, "Clipboard error: {})", e)
+            }
+        }
+    }
 }
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self {
-        Self::Lnk(e)
+        Self::Tcp(e)
     }
 }
 impl From<SendError<String>> for Error {
     fn from(e: SendError<String>) -> Self {
-        Self::Snd(e)
+        Self::Chn(e.to_string())
     }
 }
 impl From<RecvError> for Error {
     fn from(e: RecvError) -> Self {
-        Self::Rcv(e)
-    }
-}
-impl From<Box<dyn std::error::Error>> for Error {
-    fn from(e: Box<dyn std::error::Error>) -> Self {
-        Self::Dyn(e)
+        Self::Chn(e.to_string())
     }
 }
