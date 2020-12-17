@@ -68,7 +68,7 @@ impl Clipboard {
                             for stream in maps.values_mut() {
                                 task_list.push(stream.write_all(message));
                             }
-                            futures::future::join_all(task_list).await;
+                            futures_util::future::join_all(task_list).await;
                         }
                     }
                 }
